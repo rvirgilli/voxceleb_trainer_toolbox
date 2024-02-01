@@ -187,9 +187,12 @@ def main_worker(gpu, ngpus_per_node, args):
             result = tuneThresholdfromScore(sc, lab, [1, 0.1])
 
             fnrs, fprs, thresholds = ComputeErrorRates(sc, lab)
-            mindcf, threshold = ComputeMinDcf(fnrs, fprs, thresholds, args.dcf_p_target, args.dcf_c_miss, args.dcf_c_fa)
+            mindcf, mindcf_threshold = ComputeMinDcf(fnrs, fprs, thresholds, args.dcf_p_target, args.dcf_c_miss, args.dcf_c_fa)
+            eer, eer_threshold = ComputeEER(fnrs, fprs, thresholds)
 
-            print('\n',time.strftime("%Y-%m-%d %H:%M:%S"), "VEER {:2.4f}".format(result[1]), "MinDCF {:2.5f}".format(mindcf))
+            print('\n', time.strftime("%Y-%m-%d %H:%M:%S"),
+                  "VEER {:2.4f}".format(eer), "EER Threshold: {:2.4f}".format(eer_threshold),
+                  "MinDCF {:2.5f}".format(mindcf), "MinDCF Threshold: {:2.4f}".format(mindcf_threshold))
 
         return
 

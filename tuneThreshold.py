@@ -85,3 +85,19 @@ def ComputeMinDcf(fnrs, fprs, thresholds, p_target, c_miss, c_fa):
     c_def = min(c_miss * p_target, c_fa * (1 - p_target))
     min_dcf = min_c_det / c_def
     return min_dcf, min_c_det_threshold
+
+
+def ComputeEER(fnrs, fprs, thresholds):
+    eer = None
+    eer_threshold = None
+
+    # Iterate through all FNR and FPR values
+    for i in range(len(fnrs)):
+        # Find the point where FNR and FPR are closest to each other
+        if fnrs[i] == fprs[i] or fnrs[i] < fprs[i] and i > 0 and fnrs[i - 1] > fprs[i - 1]:
+            # Compute the EER as the average of the two closest points
+            eer = (fprs[i] + fnrs[i]) / 2
+            eer_threshold = thresholds[i]
+            break
+
+    return eer, eer_threshold
