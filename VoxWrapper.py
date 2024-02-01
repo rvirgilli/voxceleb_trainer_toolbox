@@ -1,18 +1,30 @@
 from SpeakerNet import SpeakerNet, WrappedModel, ModelTrainer
 from DatasetLoader import loadWAV
-from tools.wrapper_tools import generate_args_with_config
+from tools.wrapper_tools import extract_defaults_from_trainSpeakerNet, update_args_with_config_file
 from tools.AudioPreprocessingTool import AudioPreprocessingTool
 import torch
+import os
 
 class VoxWrapper:
     def __init__(self, initial_model, model_type):
+        # Check if the initial_model file exists
+        if not os.path.exists(initial_model):
+            raise FileNotFoundError(f"The specified initial model file does not exist: {initial_model}")
+
         trainSpeakerNet_path = './trainSpeakerNet.py'
-        self.args = None
+        self.args = extract_defaults_from_trainSpeakerNet(trainSpeakerNet_path)
+        self.args.initial_model = initial_model
+        self.args.eval = True
+
+        if model_type == "model1":
+            self.args.model = "ResNetSE34L"
+            self.args.log_input = True
+            self.args.trainfunc = 'angleproto'
+            self.eval_frame = 400
 
         if model_type == "rawnet3":
             config_path = './configs/RawNet3_AAM.yaml'
-            self.args = generate_args_with_config(trainSpeakerNet_path, config_path)
-            self.args.initial_model = initial_model
+            self.args = update_args_with_config_file(self.args, config_path)
 
         # Check if CUDA is available
         if torch.cuda.is_available():

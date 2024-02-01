@@ -63,7 +63,7 @@ def extract_defaults_from_trainSpeakerNet(file_path):
 
     return args
 
-def update_args_from_config(args, config_file_path):
+def update_args_with_config_file(args, config_file_path):
     """
     Updates the args object with values from the YAML config file.
 

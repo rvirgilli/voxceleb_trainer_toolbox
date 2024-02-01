@@ -179,6 +179,8 @@ class ModelTrainer(object):
                     "\rReading {:d} of {:d}: {:.2f} Hz, embedding size {:d}".format(idx, test_loader.__len__(), idx / telapsed, ref_feat.size()[1])
                 )
 
+        torch.save(feats, 'embeddings.pth')
+
         all_scores = []
         all_labels = []
         all_trials = []

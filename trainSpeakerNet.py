@@ -61,6 +61,7 @@ parser.add_argument('--dcf_c_fa',       type=float, default=1,      help='Cost o
 ## Load and save
 parser.add_argument('--initial_model',  type=str,   default="",     help='Initial model weights')
 parser.add_argument('--save_path',      type=str,   default="exps/exp1", help='Path for model and logs')
+parser.add_argument('--embeddings_file',type=str,   default="", help='File to save the extracted embeddings')
 
 ## Training and test data
 parser.add_argument('--train_list',     type=str,   default="data/train_list.txt",  help='Train list')
@@ -187,9 +188,18 @@ def main_worker(gpu, ngpus_per_node, args):
             result = tuneThresholdfromScore(sc, lab, [1, 0.1])
 
             fnrs, fprs, thresholds = ComputeErrorRates(sc, lab)
-            mindcf, threshold = ComputeMinDcf(fnrs, fprs, thresholds, args.dcf_p_target, args.dcf_c_miss, args.dcf_c_fa)
 
-            print('\n',time.strftime("%Y-%m-%d %H:%M:%S"), "VEER {:2.4f}".format(result[1]), "MinDCF {:2.5f}".format(mindcf))
+            torch.save((fnrs, fprs), 'fnrs_fprs.pth')
+
+            mindcf, mindcf_threshold = ComputeMinDcf(fnrs, fprs, thresholds, args.dcf_p_target, args.dcf_c_miss, args.dcf_c_fa)
+            eer, eer_threshold = ComputeEER(fnrs, fprs, thresholds)
+
+            print(eer)
+            print(eer_threshold)
+
+            print('\n', time.strftime("%Y-%m-%d %H:%M:%S"),
+                  "VEER {:2.4f}".format(eer), "EER Threshold: {:2.4f}".format(eer_threshold),
+                  "MinDCF {:2.5f}".format(mindcf), "MinDCF Threshold: {:2.4f}".format(mindcf_threshold))
 
         return
 
