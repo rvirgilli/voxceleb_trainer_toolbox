@@ -2,27 +2,34 @@ from SpeakerNet import SpeakerNet, WrappedModel, ModelTrainer
 from DatasetLoader import loadWAV
 from tools.wrapper_tools import extract_defaults_from_trainSpeakerNet, update_args_with_config_file
 from tools.AudioPreprocessingTool import AudioPreprocessingTool
+import torch.nn.functional as F
 import torch
 import os
 
 class VoxWrapper:
-    def __init__(self, initial_model, model_type):
-        # Check if the initial_model file exists
-        if not os.path.exists(initial_model):
-            raise FileNotFoundError(f"The specified initial model file does not exist: {initial_model}")
+    def __init__(self, model_type, separation_threshold):
 
         trainSpeakerNet_path = './trainSpeakerNet.py'
         self.args = extract_defaults_from_trainSpeakerNet(trainSpeakerNet_path)
-        self.args.initial_model = initial_model
         self.args.eval = True
+        self.separation_threshold = separation_threshold
 
-        if model_type == "model1":
+        if model_type == "baseline_lite_ap":
+            self.args.initial_model = './models/weights/RawNetSE34L/baseline_lite_ap.model'
+            self.args.model = "ResNetSE34L"
+            self.args.log_input = True
+            self.args.trainfunc = 'angleproto'
+            self.eval_frame = 400
+
+        if model_type == "model500":
+            self.args.initial_model = './models/weights/RawNetSE34L/model000000500.model'
             self.args.model = "ResNetSE34L"
             self.args.log_input = True
             self.args.trainfunc = 'angleproto'
             self.eval_frame = 400
 
         if model_type == "rawnet3":
+            self.args.initial_model = './models/weights/RawNet3/model.pt'
             config_path = './configs/RawNet3_AAM.yaml'
             self.args = update_args_with_config_file(self.args, config_path)
 
@@ -39,6 +46,10 @@ class VoxWrapper:
         s = WrappedModel(s).cuda(self.args.gpu)
         self._trainer = ModelTrainer(s, **vars(self.args))
         self._trainer.loadParameters(self.args.initial_model)
+        print(f"Model parameters loaded from: {self.args.initial_model}")
+
+        self.separation_threshold = separation_threshold
+        print(f"Separation threshold set to: {self.separation_threshold}")
 
     @staticmethod
     def check_if_16k_mono(file_path):
@@ -62,3 +73,35 @@ class VoxWrapper:
         with torch.no_grad():
             ref_feat = self._trainer.__model__(data).detach().cpu()
         return ref_feat
+
+    def calculate_similarity(self, embeddings1, embeddings2):
+        """
+        Calculates the mean cosine similarity between two sets of embeddings and checks it against a separation threshold.
+
+        Args:
+            embeddings1 (torch.Tensor): A tensor of shape (m, 512) containing m embeddings.
+            embeddings2 (torch.Tensor): A tensor of shape (n, 512) containing n embeddings.
+
+        Returns:
+            float: The mean cosine similarity between all pairs of embeddings.
+            bool: True if the mean similarity is greater than the separation threshold, else False.
+        """
+        # Ensure embeddings are on the same device
+        embeddings1 = embeddings1.cuda()
+        embeddings2 = embeddings2.cuda()
+
+        # Normalize embeddings along the feature dimension
+        embeddings1 = F.normalize(embeddings1, p=2, dim=1)
+        embeddings2 = F.normalize(embeddings2, p=2, dim=1)
+
+        # Calculate the cosine similarity between all pairs
+        similarity_matrix = torch.matmul(embeddings1, embeddings2.transpose(0, 1))
+
+        # Calculate the mean of the cosine similarities
+        mean_similarity = torch.mean(similarity_matrix)
+
+        # Check against the separation threshold
+        is_above_threshold = mean_similarity > self.separation_threshold
+
+        return mean_similarity.item(), is_above_threshold.item()
+
